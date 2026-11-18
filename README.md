@@ -1,6 +1,6 @@
 # seedream-layers
 
-把一张压平的图，拆回可以单独移动、缩放、调透明度的图层。
+把一张压平的图，拆回可以单独移动、缩放、调透明度的图层。 
 
 用火山方舟 **Agent Plan** 的 Seedream 图层拆分能力，输出 `1 张底图 + N 个透明图层`，
 在浏览器里直接编辑、预览、导出分层图片包。纯本地运行，**API Key 只保存在你自己的浏览器里**。
@@ -27,12 +27,12 @@ python -m uvicorn app:app --host 127.0.0.1 --port 8787
 
 Windows 也可以直接双击 `start.bat`，会自动打开浏览器。
 
-打开 <http://127.0.0.1:8787>，点右上角「配置」：
+打开 [http://127.0.0.1:8787](http://127.0.0.1:8787)，点右上角「配置」：
 
-| 字段 | 值 |
-|---|---|
-| Base URL | `https://ark.cn-beijing.volces.com/api/plan/v3` |
-| API Key | Agent Plan 专属 API Key（方舟控制台 → Agent Plan 页面获取） |
+| 字段     | 值                                                                             |
+| -------- | ------------------------------------------------------------------------------ |
+| Base URL | `https://ark.cn-beijing.volces.com/api/plan/v3`                              |
+| API Key  | Agent Plan 专属 API Key（方舟控制台 → Agent Plan 页面获取）                   |
 | Model ID | `doubao-seedream-5-0-pro` 或 `doubao-seedream-5.0-flash`（以套餐页面为准） |
 
 > **三个必须配套**：Agent Plan 专属 Key + 带 `/plan` 的 Base URL + 套餐内的模型。
@@ -61,16 +61,16 @@ Windows 也可以直接双击 `start.bat`，会自动打开浏览器。
 
 ### 画布操作
 
-| 操作 | 效果 |
-|---|---|
-| 拖拽图层 | 移动位置 |
-| 右下角圆点 | 等比缩放 |
-| 方向键 / `Shift` + 方向键 | 微调 1px / 10px |
-| 双击图层 | 还原到模型给出的原始位置 |
-| `Delete` / `Backspace` | 移除选中图层（仅本次会话） |
-| `Esc` | 取消选择；抽屉打开时先关抽屉 |
-| `Ctrl` + 滚轮 | 缩放画布；点中间百分比回到适应窗口 |
-| 右侧图层列表 | 改名、显隐、上移 / 下移、移除、透明度 |
+| 操作                        | 效果                                  |
+| --------------------------- | ------------------------------------- |
+| 拖拽图层                    | 移动位置                              |
+| 右下角圆点                  | 等比缩放                              |
+| 方向键 / `Shift` + 方向键 | 微调 1px / 10px                       |
+| 双击图层                    | 还原到模型给出的原始位置              |
+| `Delete` / `Backspace`  | 移除选中图层（仅本次会话）            |
+| `Esc`                     | 取消选择；抽屉打开时先关抽屉          |
+| `Ctrl` + 滚轮             | 缩放画布；点中间百分比回到适应窗口    |
+| 右侧图层列表                | 改名、显隐、上移 / 下移、移除、透明度 |
 
 ### 导出
 
@@ -120,17 +120,17 @@ README 里的两张截图就是用它跑出来的。
 
 ## 接口
 
-| 方法 | 路径 | 说明 |
-|---|---|---|
-| GET | `/api/health` | 默认配置、候选模型、尺寸档位 |
-| POST | `/api/decompose` | multipart：`image` + `baseUrl` / `baseKey` / `model` / `size` / `watermark` / `maxImages` / `prompt` |
-| POST | `/api/generate` | JSON：文生图后自动拆层 |
-| GET | `/api/jobs` | 历史任务列表 |
-| GET | `/api/jobs/{id}` | 重新载入某次结果 |
-| GET | `/files/{job}/{file}` | 本地图层图片（只读） |
-| GET | `/api/export/zip?job=` | 下载分层包 |
+| 方法 | 路径                     | 说明                                                                                                                 |
+| ---- | ------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| GET  | `/api/health`          | 默认配置、候选模型、尺寸档位                                                                                         |
+| POST | `/api/decompose`       | multipart：`image` + `baseUrl` / `baseKey` / `model` / `size` / `watermark` / `maxImages` / `prompt` |
+| POST | `/api/generate`        | JSON：文生图后自动拆层                                                                                               |
+| GET  | `/api/jobs`            | 历史任务列表                                                                                                         |
+| GET  | `/api/jobs/{id}`       | 重新载入某次结果                                                                                                     |
+| GET  | `/files/{job}/{file}`  | 本地图层图片（只读）                                                                                                 |
+| GET  | `/api/export/zip?job=` | 下载分层包                                                                                                           |
 
-交互式文档：<http://127.0.0.1:8787/api/docs>
+交互式文档：[http://127.0.0.1:8787/api/docs](http://127.0.0.1:8787/api/docs)
 
 ## 目录
 
@@ -179,14 +179,14 @@ result.json        画布尺寸、bbox、usage、请求元数据
 
 ## 常见问题
 
-| 现象 | 原因 |
-|---|---|
+| 现象                                    | 原因                                           |
+| --------------------------------------- | ---------------------------------------------- |
 | 401 `The API key format is incorrect` | Key 不是 Agent Plan 专属 Key，或复制时带了空格 |
-| 404 / `InvalidEndpointOrModel` | Base URL 少了 `/plan`，或模型不在套餐内 |
-| 提示总像素过小 | 图层拆分要求输入图 ≥ 512×512 |
-| 拆分很慢 | 多图层通常 1~3 分钟，服务端超时设为 300s |
-| 图层是整块方形、位置不对 | 确认 `Model ID` 属于支持图层拆分的套餐模型 |
-| 导出包里图层名是中文 | 正常，ZIP 与预览页都支持 UTF-8 文件名 |
+| 404 / `InvalidEndpointOrModel`        | Base URL 少了 `/plan`，或模型不在套餐内      |
+| 提示总像素过小                          | 图层拆分要求输入图 ≥ 512×512                 |
+| 拆分很慢                                | 多图层通常 1~3 分钟，服务端超时设为 300s       |
+| 图层是整块方形、位置不对                | 确认 `Model ID` 属于支持图层拆分的套餐模型   |
+| 导出包里图层名是中文                    | 正常，ZIP 与预览页都支持 UTF-8 文件名          |
 
 ## 已知限制
 
