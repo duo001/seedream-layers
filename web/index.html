@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>seedream-layers · 图层拆分工作台</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="logo">SL</span>
+        <div class="brand-text">
+          <h1>seedream-layers</h1>
+          <p>Seedream 图层拆分 · Agent Plan</p>
+        </div>
+      </div>
+      <div class="top-actions">
+        <span class="model-chip" id="modelChip">未配置模型</span>
+        <button class="ghost-btn" id="historyBtn">历史任务</button>
+        <button class="ghost-btn" id="configBtn">配置</button>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <!-- 左栏：输入 -->
+      <aside class="sidebar">
+        <div class="mode-tabs">
+          <button class="mode-tab active" data-mode="upload">上传拆分</button>
+          <button class="mode-tab" data-mode="text">文生图 + 拆分</button>
+        </div>
+
+        <div class="mode-panel" id="panelUpload">
+          <label class="dropzone" id="dropzone">
+            <input type="file" id="fileInput" accept="image/png,image/jpeg" hidden>
+            <div class="dz-empty" id="dzEmpty">
+              <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              <b>点击 / 拖拽 / Ctrl+V 粘贴</b>
+              <small>PNG / JPEG · ≤30MB · 总像素 ≥512×512</small>
+            </div>
+            <div class="dz-preview" id="dzPreview" hidden>
+              <img id="previewImg" alt="">
+              <div class="dz-meta">
+                <span id="previewName"></span>
+                <small id="previewMeta"></small>
+              </div>
+            </div>
+          </label>
+        </div>
+
+        <div class="mode-panel" id="panelText" hidden>
+          <label class="field">
+            <span>生成提示词</span>
+            <textarea id="promptInput" rows="5" placeholder="例如：一张热带雨林风格的海报，包含大标题、副标题和装饰元素"></textarea>
+          </label>
+        </div>
+
+        <label class="field">
+          <span>拆分提示词 <em>可选</em></span>
+          <textarea id="layerPrompt" rows="2" placeholder="留空 = 由模型自动识别主要元素；也可写「拆出人物、标题文字和背景」"></textarea>
+        </label>
+
+        <div class="field">
+          <span>输出档位</span>
+          <select id="sizeSelect">
+            <option value="auto" selected>auto（跟随原图）</option>
+            <option value="1K">1K</option>
+            <option value="1.5K">1.5K</option>
+            <option value="2K">2K</option>
+          </select>
+        </div>
+
+        <div class="row-2">
+          <label class="switch">
+            <input type="checkbox" id="watermark">
+            <span class="track"></span>
+            <span class="label">水印</span>
+          </label>
+          <label class="field compact">
+            <span>拆分上限 <em>仅 5.5</em></span>
+            <input type="number" id="maxImages" min="0" max="100" value="0" placeholder="0=不传">
+          </label>
+        </div>
+
+        <button class="primary-btn" id="runBtn">
+          <span id="runLabel">开始拆分</span>
+          <span class="spinner" id="runSpinner" hidden></span>
+          <span class="timer" id="runTimer" hidden>0s</span>
+        </button>
+        <button class="text-btn" id="cancelBtn" hidden>取消请求</button>
+
+        <p class="tip">Key 保存在浏览器 localStorage，仅在请求时发给本地服务，后端不落盘。</p>
+      </aside>
+
+      <!-- 中栏：画布 -->
+      <main class="stage">
+        <div class="toolbar" id="toolbar" hidden>
+          <div class="group">
+            <button class="icon-btn" data-act="zoom-out" title="缩小">−</button>
+            <button class="zoom-label" data-act="fit" title="适应窗口"><span id="zoomLabel">100%</span></button>
+            <button class="icon-btn" data-act="zoom-in" title="放大">+</button>
+          </div>
+          <div class="group">
+            <button data-act="toggle-all">全部显隐</button>
+            <button data-act="reset">重置位置</button>
+          </div>
+          <div class="group right">
+            <span class="job-badge" id="jobBadge"></span>
+            <button data-act="export-png">下载合成图</button>
+            <button class="accent" data-act="export-zip">导出分层包</button>
+          </div>
+        </div>
+
+        <div class="canvas-area" id="canvasArea">
+          <div class="empty-state" id="emptyState">
+            <svg width="70" height="70" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+              <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+            <h2>上传一张图，或先让模型生成一张</h2>
+            <p>Seedream 会把主体、文字、背景拆成 1 张底图 + 多个透明图层<br>在这里拖拽、缩放、调层级，然后导出分层图片包</p>
+          </div>
+          <div class="sizer" id="sizer" hidden>
+            <div class="board" id="board"></div>
+          </div>
+        </div>
+
+        <div class="inspector" id="inspector" hidden>
+          <span class="ins-name" id="insName">未选中图层</span>
+          <span class="ins-geo" id="insGeo"></span>
+          <label class="ins-op">
+            透明度
+            <input type="range" id="opacityRange" min="10" max="100" step="1" value="100">
+            <span id="opacityValue">100%</span>
+          </label>
+          <button class="text-btn" id="resetLayer">还原该层</button>
+          <span class="tip">方向键微调 · Shift+方向 10px · Delete 移除 · Esc 取消选择</span>
+        </div>
+      </main>
+
+      <!-- 右栏：图层 -->
+      <aside class="layer-panel" id="layerPanel" hidden>
+        <div class="lp-head">
+          <h2>图层</h2>
+          <span id="layerCount"></span>
+        </div>
+        <div class="lp-list" id="layerList"></div>
+        <p class="tip">上移 = 往上层。导出分层包按模型原始位置生成；网页上的拖动只影响「下载合成图」。</p>
+      </aside>
+    </div>
+  </div>
+
+  <div class="drawer-mask" id="mask" hidden></div>
+
+  <!-- 配置抽屉 -->
+  <aside class="drawer" id="configDrawer" hidden>
+    <div class="drawer-head">
+      <h2>接口配置</h2>
+      <button class="icon-btn" data-close>×</button>
+    </div>
+    <div class="drawer-body">
+      <label class="field">
+        <span>Base URL</span>
+        <input type="text" id="cfgBaseUrl" placeholder="https://ark.cn-beijing.volces.com/api/plan/v3" spellcheck="false">
+        <small>Agent Plan 必须带 <code>/plan</code>，用普通方舟地址会失败。</small>
+      </label>
+      <label class="field">
+        <span>API Key</span>
+        <input type="password" id="cfgKey" placeholder="Agent Plan 专属 API Key" spellcheck="false" autocomplete="off">
+        <small>保存在本浏览器 localStorage，不会写入服务端文件。</small>
+      </label>
+      <label class="field">
+        <span>Model ID</span>
+        <input type="text" id="cfgModel" list="modelOptions" placeholder="doubao-seedream-5-0-pro" spellcheck="false">
+        <datalist id="modelOptions"></datalist>
+        <small id="modelHint">需为套餐内支持的模型。</small>
+      </label>
+      <div class="drawer-actions">
+        <button class="primary-btn" id="saveConfig">保存</button>
+        <button class="ghost-btn" id="resetConfig">恢复默认</button>
+        <button class="text-btn" id="clearKey">清除 Key</button>
+      </div>
+      <p class="tip">
+        Key 获取：火山方舟控制台 → Agent Plan → 获取专属 API Key。文档：
+        <a href="https://ark.volcengine.com/region:cn-beijing/docs/agent-plan-personal-visual-models" target="_blank" rel="noreferrer">Agent Plan 视觉模型</a>
+      </p>
+    </div>
+  </aside>
+
+  <!-- 历史抽屉 -->
+  <aside class="drawer" id="historyDrawer" hidden>
+    <div class="drawer-head">
+      <h2>历史任务</h2>
+      <button class="icon-btn" data-close>×</button>
+    </div>
+    <div class="drawer-body">
+      <div class="history-list" id="historyList">
+        <p class="tip">加载中…</p>
+      </div>
+    </div>
+  </aside>
+
+  <div class="toast" id="toast" hidden></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

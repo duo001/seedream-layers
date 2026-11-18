@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 密钥 / 本地配置：本项目 Key 只存浏览器，这里只是兜底
+.env
+.env.*
+
+# 运行时产物：任务目录、导出包、日志
+output/
+*.zip
+*.log
+
+# 编辑器与系统文件
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
