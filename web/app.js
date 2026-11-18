@@ -27,6 +27,7 @@ const state = {
   previewUrl: null,
   jobId: null,
   job: null,
+  usage: {},
   canvas: { w: 0, h: 0 },
   base: null,
   layers: [],
@@ -45,6 +46,7 @@ const el = {
   mask: $('#mask'),
   configDrawer: $('#configDrawer'),
   historyDrawer: $('#historyDrawer'),
+  historyFoot: $('#historyFoot'),
   modelChip: $('#modelChip'),
   board: $('#board'),
   sizer: $('#sizer'),
@@ -55,6 +57,7 @@ const el = {
   layerList: $('#layerList'),
   layerCount: $('#layerCount'),
   jobBadge: $('#jobBadge'),
+  usageBadge: $('#usageBadge'),
   zoomLabel: $('#zoomLabel'),
   inspector: $('#inspector'),
   insName: $('#insName'),
@@ -94,6 +97,54 @@ function toast(message, type = 'error') {
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
+}
+
+const USAGE_FIELDS = ['input_images', 'generated_images', 'output_tokens', 'total_tokens'];
+
+/* 汇总文生图 + 拆分层两次调用的用量；旧任务没有 usage_total 时现场加总 */
+function sumUsage(job) {
+  if (!job) return {};
+  if (job.usage_total && Object.keys(job.usage_total).length) return job.usage_total;
+  const total = {};
+  [job.usage_generate, job.usage].forEach((usage) => {
+    if (!usage || typeof usage !== 'object') return;
+    USAGE_FIELDS.forEach((field) => {
+      const value = Number(usage[field]);
+      if (Number.isFinite(value)) total[field] = (total[field] || 0) + value;
+    });
+  });
+  return total;
+}
+
+function formatTokens(value) {
+  return (Number(value) || 0).toLocaleString('zh-CN');
+}
+
+function usageLabel(usage) {
+  const images = Number(usage?.generated_images) || 0;
+  const tokens = Number(usage?.output_tokens) || 0;
+  if (!images && !tokens) return '';
+  return `${images} 张 · ${formatTokens(tokens)} tk`;
+}
+
+function usageDetail(job) {
+  const total = sumUsage(job);
+  const lines = [];
+  [
+    ['文生图', job?.usage_generate],
+    ['拆分层', job?.usage],
+  ].forEach(([name, usage]) => {
+    if (!usage || typeof usage !== 'object') return;
+    const images = Number(usage.generated_images) || 0;
+    const tokens = Number(usage.output_tokens) || 0;
+    if (!images && !tokens) return;
+    lines.push(`${name}  ${images} 张  ${formatTokens(tokens)} tk`);
+  });
+  if (lines.length > 1) {
+    lines.push(`合计    ${Number(total.generated_images) || 0} 张  ${formatTokens(total.output_tokens)} tk`);
+  }
+  lines.push('tk = Σ(宽×高)/256，面积折算值，不参与计费');
+  return lines.join('\n');
 }
 
 function fileUrl(relative) {
@@ -534,8 +585,9 @@ async function runGenerate() {
 
 function announceJob(job) {
   const layers = job.layers?.length || 0;
-  const tokens = job.usage?.output_tokens ? ` · ${job.usage.output_tokens} tokens` : '';
-  toast(`拆分完成：${layers} 个图层 + 1 张底图 · ${state.canvas.w}×${state.canvas.h}${tokens}`, 'success');
+  const usage = usageLabel(state.usage);
+  const suffix = usage ? ` · ${usage}` : '';
+  toast(`拆分完成：${layers} 个图层 + 1 张底图 · ${state.canvas.w}×${state.canvas.h}${suffix}`, 'success');
 }
 
 /* ---------------- 渲染 ---------------- */
@@ -580,6 +632,12 @@ function applyJob(job) {
   el.layerPanel.hidden = false;
   el.inspector.hidden = true;
   el.jobBadge.textContent = `${state.jobId} · ${state.canvas.w}×${state.canvas.h}`;
+
+  state.usage = sumUsage(job);
+  const usageText = usageLabel(state.usage);
+  el.usageBadge.hidden = !usageText;
+  el.usageBadge.textContent = usageText;
+  el.usageBadge.title = usageText ? usageDetail(job) : '';
 
   renderBoard();
   renderLayerList();
@@ -1021,6 +1079,7 @@ async function exportZip() {
 async function loadHistory() {
   const container = $('#historyList');
   container.innerHTML = '<p class="tip">加载中…</p>';
+  el.historyFoot.hidden = true;
   try {
     const data = await request('/api/jobs');
     const jobs = data?.jobs || [];
@@ -1043,10 +1102,11 @@ async function loadHistory() {
       const meta = document.createElement('div');
       meta.className = 'history-meta';
       const date = job.created_at ? job.created_at.replace('T', ' ').slice(0, 19) : '';
+      const usage = usageLabel(job.usage);
       meta.innerHTML = `
         <b>${job.job_id}</b>
         <small>${date} · ${job.layer_count} 层 · ${job.canvas?.w || '?'}×${job.canvas?.h || '?'}</small>
-        <small>${job.model || ''}</small>
+        <small>${job.model || ''}${usage ? ` · ${usage}` : ''}</small>
       `;
 
       item.append(thumb, meta);
@@ -1062,6 +1122,13 @@ async function loadHistory() {
       });
       container.appendChild(item);
     });
+
+    const totalImages = jobs.reduce((sum, job) => sum + (Number(job.usage?.generated_images) || 0), 0);
+    const totalTokens = jobs.reduce((sum, job) => sum + (Number(job.usage?.output_tokens) || 0), 0);
+    if (totalImages || totalTokens) {
+      el.historyFoot.hidden = false;
+      el.historyFoot.textContent = `最近 ${jobs.length} 次 · ${totalImages} 张 · ${formatTokens(totalTokens)} tk`;
+    }
   } catch (error) {
     container.innerHTML = `<p class="tip">加载失败：${error.message}</p>`;
   }

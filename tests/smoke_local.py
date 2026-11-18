@@ -78,7 +78,8 @@ def main() -> int:
         jobs.create_job(
             fake_response(),
             model="doubao-seedream-fake",
-            request_meta={"mode": "upload", "size": "auto"},
+            request_meta={"mode": "text", "size": "auto"},
+            generate_usage={"generated_images": 1, "output_tokens": 4000, "total_tokens": 4000},
         )
     )
     job_dir = jobs.OUTPUT_DIR / result["job_id"]
@@ -87,6 +88,18 @@ def main() -> int:
         assert result["canvas"] == {"w": 800, "h": 600}, result["canvas"]
         assert len(result["layers"]) == 2, result["layers"]
         assert [layer["z_index"] for layer in result["layers"]] == [1, 2]
+
+        # 用量：文生图 + 拆分层合并，token 不参与计费只做展示
+        assert result["usage"]["generated_images"] == 3
+        assert result["usage_generate"]["output_tokens"] == 4000
+        assert result["usage_total"] == {
+            "generated_images": 4,
+            "input_images": 1,
+            "output_tokens": 16345,
+            "total_tokens": 4000,
+        }, result["usage_total"]
+        assert jobs.sum_usage({}) == {}
+        assert jobs.sum_usage({"usage": {"output_tokens": 5}}) == {"output_tokens": 5}
 
         for layer in result["layers"]:
             for key in ("file", "aligned_file"):
@@ -111,13 +124,19 @@ def main() -> int:
             meta = json.loads(archive.read("layers.json").decode("utf-8"))
             assert len(meta["layers"]) == 2
             assert meta["layers"][0]["bbox"]["absolute"] == [120, 90, 320, 230]
+            assert meta["usage_total"]["generated_images"] == 4
+            assert meta["usage_total"]["output_tokens"] == 16345
+
+            readme = archive.read("README.txt").decode("utf-8")
+            assert "用量：4 张图片 / 16345 图像 token" in readme, readme
 
             composite = Image.open(io.BytesIO(archive.read("composite.png")))
             assert composite.size == (800, 600)
 
         loaded = jobs.load_job(result["job_id"])
         assert loaded["job_id"] == result["job_id"]
-        assert any(item["job_id"] == result["job_id"] for item in jobs.list_jobs())
+        listed = next(item for item in jobs.list_jobs() if item["job_id"] == result["job_id"])
+        assert listed["usage"]["generated_images"] == 4, listed["usage"]
 
         try:
             exporter.build_psd(job_dir, result)

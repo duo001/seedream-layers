@@ -222,6 +222,7 @@ async def api_generate(body: GenerateBody) -> dict[str, Any]:
             "layer_prompt": (body.layerPrompt or "").strip(),
             "base_url": base_url,
         },
+        generate_usage=generated.get("usage") or {},
     )
     result["generated_image"] = source
     return result

@@ -120,13 +120,40 @@ def _align_layer(image: Image.Image, bbox: list[int] | None, width: int, height:
     return canvas
 
 
+USAGE_FIELDS = ("input_images", "generated_images", "output_tokens", "total_tokens")
+
+
+def sum_usage(result: dict[str, Any]) -> dict[str, int]:
+    """汇总一次任务里所有上游调用的 usage（文生图 + 图层拆分）。
+
+    旧任务只有一份 usage、没有 usage_total，也能用这个函数补算。
+    方舟的 output_tokens 是 Σ(宽×高)/256 的面积折算值，不参与计费。
+    """
+    total: dict[str, int] = {}
+    for key in ("usage_generate", "usage"):
+        usage = result.get(key)
+        if not isinstance(usage, dict):
+            continue
+        for field in USAGE_FIELDS:
+            value = usage.get(field)
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                continue
+            total[field] = total.get(field, 0) + int(value)
+    return total
+
+
 async def create_job(
     response: dict[str, Any],
     *,
     model: str,
     request_meta: dict[str, Any],
+    generate_usage: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """把一次拆层响应整理成本地任务目录，返回 result 字典。"""
+    """把一次拆层响应整理成本地任务目录，返回 result 字典。
+
+    generate_usage 是「文生图 + 拆分」模式下第一步的用量，可选；
+    两个阶段的用量各自保留原始值，再由 usage_total 汇总。
+    """
     data = response.get("data") or []
     if not isinstance(data, list) or not data:
         raise ValueError("方舟未返回任何图层数据")
@@ -209,6 +236,9 @@ async def create_job(
         },
         "layers": layers,
     }
+    if generate_usage:
+        result["usage_generate"] = generate_usage
+    result["usage_total"] = sum_usage(result)
 
     (job_dir / "result.json").write_text(
         json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8"
@@ -253,6 +283,8 @@ def list_jobs(limit: int = 30) -> list[dict[str, Any]]:
                 "model": result.get("model") or "",
                 "canvas": result.get("canvas") or {},
                 "layer_count": len(result.get("layers") or []),
+                # 用量：新任务直接读 usage_total，旧任务现场汇总
+                "usage": result.get("usage_total") or sum_usage(result),
                 # 用底图做历史缩略图：图层图大多是透明背景，缩略图看不出来
                 "thumb": result.get("base", {}).get("file"),
                 "mode": (result.get("request") or {}).get("mode") or "",

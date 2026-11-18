@@ -261,6 +261,18 @@ code { background: #222631; padding: 1px 5px; border-radius: 4px; }
 }
 .zoom-label { min-width: 58px; font-variant-numeric: tabular-nums; color: var(--muted) !important; }
 .job-badge { font-size: 11px; color: var(--dim); margin-right: 4px; font-variant-numeric: tabular-nums; }
+.usage-badge {
+  font-size: 11px;
+  color: #9fb3d9;
+  background: #1a2130;
+  border: 1px solid #2a3550;
+  border-radius: 999px;
+  padding: 2px 9px;
+  margin-right: 4px;
+  white-space: nowrap;
+  cursor: help;
+  font-variant-numeric: tabular-nums;
+}
 
 /* ---------- 画布 ---------- */
 .canvas-area {
@@ -412,6 +424,13 @@ code { background: #222631; padding: 1px 5px; border-radius: 4px; }
 
 /* ---------- 历史 ---------- */
 .history-list { display: flex; flex-direction: column; gap: 8px; }
+.history-foot {
+  font-size: 11px;
+  color: var(--dim);
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+  font-variant-numeric: tabular-nums;
+}
 .history-item {
   display: flex; gap: 10px; align-items: center;
   padding: 8px;

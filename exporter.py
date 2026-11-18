@@ -68,6 +68,8 @@ def _slim_layers(result: dict[str, Any]) -> dict[str, Any]:
         "model": result.get("model"),
         "canvas": result.get("canvas") or {},
         "usage": result.get("usage") or {},
+        "usage_generate": result.get("usage_generate") or {},
+        "usage_total": result.get("usage_total") or {},
         "layers": layers,
     }
 
@@ -207,6 +209,18 @@ document.getElementById('toggleAll').addEventListener('click', () => {{
 """
 
 
+def _usage_line(result: dict[str, Any]) -> str:
+    usage = result.get("usage_total") or {}
+    images = usage.get("generated_images")
+    tokens = usage.get("output_tokens")
+    if images is None and tokens is None:
+        return ""
+    return (
+        f"用量：{images or 0} 张图片 / {tokens or 0} 图像 token"
+        "（token 为面积折算值，不参与计费）\n"
+    )
+
+
 def _readme(result: dict[str, Any]) -> str:
     canvas = result.get("canvas") or {}
     return (
@@ -216,7 +230,8 @@ def _readme(result: dict[str, Any]) -> str:
         f"生成模型：{result.get('model')}\n"
         f"生成时间：{result.get('created_at')}\n"
         f"画布尺寸：{canvas.get('w')}×{canvas.get('h')}\n"
-        f"图层数量：{len(result.get('layers') or [])} + 1 张底图\n\n"
+        f"图层数量：{len(result.get('layers') or [])} + 1 张底图\n"
+        f"{_usage_line(result)}\n"
         "目录说明\n"
         "--------\n"
         "composite.png   合成图，可直接预览或交付\n"
