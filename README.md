@@ -7,6 +7,9 @@
 
 ![界面截图](docs/screenshot.png)
 
+想了解内部实现（请求链路、两套图层图片、坐标系、模块职责、扩展点），
+看 [架构与实现说明](docs/ARCHITECTURE.md)。
+
 ## 特性
 
 - **两种入口**：上传一张图直接拆分；或先文生图，再自动拆层，一步完成。
@@ -155,7 +158,7 @@ exporter.py            分层包 ZIP、合成图、viewer.html；PSD 预留接�
 web/                   前端单页（index.html / style.css / app.js）
 tests/smoke_local.py   离线冒烟测试
 tests/fake_ark.py      假方舟，调 UI 不花额度
-docs/                  截图
+docs/                  截图与架构文档
 output/<job_id>/       运行时产物（已 gitignore）
 ```
 
